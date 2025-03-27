@@ -1,0 +1,118 @@
+var template = `
+<style type="text/css">
+.tftable th, .tftable td { text-align: center; }
+</style>
+{{#each response.Resources}}
+<h2>{{name}}</h2>
+<table class="tftable" border="1">
+<tr>
+<th>Name</th>
+<th>Description</th>
+<th>Data Type</th>
+<th>Example Values</th>
+<th>Mutability</th>
+</tr>
+{{#each attributes}}
+{{#if isComplexType}}
+{{#each subAttributes}}
+<tr>
+<td>{{../name}}{{#if ../isMultiValued}}[]{{/if}}.{{name}}{{#if isMultiValued}}[]{{/if}}{{#if required}}<span style="color: red;">*</span>{{/if}}</td>
+<td>{{description}}</td>
+<td>{{type}}</td>
+<td>{{example}}</td>
+<td>{{mutability}}</td>
+</tr>
+{{#if subAttributes}}
+{{#each subAttributes}}
+<tr>
+<td>{{../../name}}{{#if ../../isMultiValued}}[]{{/if}}.{{../name}}{{#if ../isMultiValued}}[]{{/if}}.{{name}}{{#if isMultiValued}}[]{{/if}}{{#if required}}<span style="color: red;">*</span>{{/if}}</td>
+<td>{{description}}</td>
+<td>{{type}}</td>
+<td>{{example}}</td>
+<td>{{mutability}}</td>
+</tr>
+{{#if subAttributes}}
+{{#each subAttributes}}
+<tr>
+<td>{{../../../name}}{{#if ../../../isMultiValued}}[]{{/if}}.{{../../name}}{{#if ../../isMultiValued}}[]{{/if}}.{{../name}}{{#if ../isMultiValued}}[]{{/if}}.{{name}}{{#if isMultiValued}}[]{{/if}}{{#if required}}<span style="color: red;">*</span>{{/if}}</td>
+<td>{{description}}</td>
+<td>{{type}}</td>
+<td>{{example}}</td>
+<td>{{mutability}}</td>
+</tr>
+{{#if subAttributes}}
+{{#each subAttributes}}
+<tr>
+<td>{{../../../../name}}{{#if ../../../../isMultiValued}}[]{{/if}}.{{../../../name}}{{#if ../../../isMultiValued}}[]{{/if}}.{{../../name}}{{#if ../../isMultiValued}}[]{{/if}}.{{../name}}{{#if ../isMultiValued}}[]{{/if}}.{{name}}{{#if isMultiValued}}[]{{/if}}{{#if required}}<span style="color: red;">*</span>{{/if}}</td>
+<td>{{description}}</td>
+<td>{{type}}</td>
+<td>{{example}}</td>
+<td>{{mutability}}</td>
+</tr>
+{{#if subAttributes}}
+{{#each subAttributes}}
+<tr>
+<td>{{../../../../../name}}{{#if ../../../../../isMultiValued}}[]{{/if}}.{{../../../../name}}{{#if ../../../../isMultiValued}}[]{{/if}}.{{../../../name}}{{#if ../../../isMultiValued}}[]{{/if}}.{{../../name}}{{#if ../../isMultiValued}}[]{{/if}}.{{../name}}{{#if ../isMultiValued}}[]{{/if}}.{{name}}{{#if isMultiValued}}[]{{/if}}{{#if required}}<span style="color: red;">*</span>{{/if}}</td>
+<td>{{description}}</td>
+<td>{{type}}</td>
+<td>{{example}}</td>
+<td>{{mutability}}</td>
+</tr>
+{{/each}}
+{{/if}}
+{{/each}}
+{{/if}}
+{{/each}}
+{{/if}}
+{{/each}}
+{{/if}}
+{{/each}}
+{{else}}
+<tr>
+<td>{{name}}{{#if isMultiValued}}[]{{/if}}{{#if required}}<span style="color: red;">*</span>{{/if}}</td>
+<td>{{description}}</td>
+<td>{{type}}</td>
+<td>{{example}}</td>
+<td>{{mutability}}</td>
+</tr>
+{{/if}}
+{{/each}}
+</table>
+{{/each}}
+`;
+function constructVisualizerPayload() {
+var res = pm.response.json();
+res.Resources.forEach(schema => {
+schema.attributes.forEach(attr => {
+attr.isComplexType = attr.type === "complex";
+attr.isMultiValued = attr.multiValued === true;
+attr.required = attr.required === true;
+if (attr.subAttributes) {
+attr.subAttributes.forEach(subAttr => {
+subAttr.isMultiValued = subAttr.multiValued === true;
+subAttr.required = subAttr.required === true;
+if (subAttr.subAttributes) {
+subAttr.subAttributes.forEach(subSubAttr => {
+subSubAttr.isMultiValued = subSubAttr.multiValued === true;
+subSubAttr.required = subSubAttr.required === true;
+if (subSubAttr.subAttributes) {
+subSubAttr.subAttributes.forEach(subSubSubAttr => {
+subSubSubAttr.isMultiValued = subSubSubAttr.multiValued === true;
+subSubSubAttr.required = subSubSubAttr.required === true;
+if (subSubSubAttr.subAttributes) {
+subSubSubAttr.subAttributes.forEach(subSubSubSubAttr => {
+subSubSubSubAttr.isMultiValued = subSubSubSubAttr.multiValued === true;
+subSubSubSubAttr.required = subSubSubSubAttr.required === true;
+});
+}
+});
+}
+});
+}
+});
+}
+});
+});
+return { response: res };
+}
+pm.visualizer.set(template, constructVisualizerPayload());
