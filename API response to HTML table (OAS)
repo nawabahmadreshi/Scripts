@@ -1,0 +1,144 @@
+// Helper function to flatten properties
+function flattenProperties(properties, parentPath = '', levels = 0, operationId = '', requiredFields = []) {
+    let flattened = [];
+    for (let prop in properties) {
+        let fullPath = parentPath ? `${parentPath} > ${prop}` : prop;
+        let property = properties[prop];
+        let isRequired = requiredFields.includes(prop);
+        
+        flattened.push({ 
+            name: fullPath, 
+            level: levels, 
+            operationId, 
+            required: isRequired, // Mark required fields
+            ...property 
+        });
+        if (property.type === "object" && property.properties) {
+            flattened.push(...flattenProperties(property.properties, fullPath, levels + 1, operationId, property.required || []));
+        } else if (property.type === "array" && property.items && property.items.properties) {
+            flattened.push(...flattenProperties(property.items.properties, fullPath, levels + 1, operationId, property.required || []));
+        }
+    }
+    return flattened;
+}
+// Function to construct the visualizer payload
+function constructVisualizerPayload() {
+    var res = pm.response.json();
+    let operationData = [];
+    if (res && res.document && res.document.paths) {
+        for (let path in res.document.paths) {
+            let pathItem = res.document.paths[path];
+            for (let method in pathItem) {
+                if (['get', 'post', 'put', 'delete', 'patch'].includes(method)) {
+                    let operation = pathItem[method];
+                    if (operation && operation.operationId) {
+                        let parameters = (operation.parameters || []).map(param => ({
+                            ...param, 
+                            required: param.required || false
+                        }));
+                        let bodyParameters = [];
+                        if (operation.requestBody && operation.requestBody.content) {
+                            for (let contentType in operation.requestBody.content) {
+                                let schema = operation.requestBody.content[contentType].schema;
+                                if (schema && schema.properties) {
+                                    bodyParameters = flattenProperties(schema.properties, '', 0, operation.operationId, schema.required || []);
+                                }
+                            }
+                        }
+                        operationData.push({
+                            operationId: operation.operationId,
+                            operationDescription: operation.description ? `(${operation.description})` : "(No description)", // Enclosing in ()
+                            parameters: parameters.concat(bodyParameters)
+                        });
+                    }
+                }
+            }
+        }
+    }
+    return { response: { operationData } };
+}
+// HTML template for rendering
+var template = `
+<style>
+    body { font-family: Arial, sans-serif; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 1px solid black; }
+    th, td { border: 1px solid black; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    .hidden { display: none; } /* Hides first two columns */
+    .copy-btn { background-color: #28a745; color: white; padding: 10px; border: none; cursor: pointer; margin-bottom: 10px; }
+    .copy-btn:hover { background-color: #218838; }
+    .operation-cell { text-align: center; font-weight: bold; }
+    .description { display: block; font-size: 12px; font-style: italic; color: gray; margin-top: 5px; text-align: center; }
+    .required { color: red; font-weight: bold; }
+</style>
+<h3>API Operations</h3>
+<button class="copy-btn" onclick="copyTable()">Copy Table</button>
+<table id="operationTable">
+<thead>
+<tr>
+    <th class="hidden">Method</th>
+    <th class="hidden">Endpoint</th>
+    <th>Operation ID</th>
+    <th>Parameter Name</th>
+    <th>Type</th>
+    <th>Description</th>
+</tr>
+</thead>
+<tbody>
+{{#each response.operationData}}
+    {{#if this.parameters.length}}
+        <tr>
+            <td class="hidden" rowspan="{{this.parameters.length}}"></td>
+            <td class="hidden" rowspan="{{this.parameters.length}}"></td>
+            <td class="operation-cell" rowspan="{{this.parameters.length}}">
+                {{operationId}}
+                <span class="description">{{operationDescription}}</span> <!-- Centered description -->
+            </td>
+            <td>
+                {{this.parameters.[0].name}}
+                {{#if this.parameters.[0].required}} <span class="required">*</span>{{/if}}
+            </td>
+            <td>{{this.parameters.[0].type}}</td>
+            <td>{{this.parameters.[0].description}}</td>
+        </tr>
+        {{#each this.parameters}}
+            {{#unless @first}}
+            <tr>
+                <td>
+                    {{name}}
+                    {{#if required}} <span class="required">*</span>{{/if}}
+                </td>
+                <td>{{type}}</td>
+                <td>{{description}}</td>
+            </tr>
+            {{/unless}}
+        {{/each}}
+    {{else}}
+        <tr>
+            <td class="hidden"></td>
+            <td class="hidden"></td>
+            <td class="operation-cell">
+                {{operationId}}
+                <span class="description">{{operationDescription}}</span> <!-- Centered description -->
+            </td>
+            <td colspan="3">No parameters</td>
+        </tr>
+    {{/if}}
+{{/each}}
+</tbody>
+</table>
+<script>
+    function copyTable() {
+        var range = document.createRange();
+        var table = document.getElementById("operationTable");
+        range.selectNode(table);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        document.execCommand("copy");
+        window.getSelection().removeAllRanges();
+        alert("Table copied!");
+    }
+</script>
+`;
+// Set the visualizer template
+pm.visualizer.set(template, constructVisualizerPayload());
